@@ -1,11 +1,16 @@
+import { useSyncExternalStore } from 'react';
+
 type SetterFn<T> = (prevState: T) => Partial<T>;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function createStore<TState extends Record<string, any>>(
-  initialState: TState,
+  createState: (
+    setState: (partialState: Partial<TState> | SetterFn<TState>) => void,
+    getState: () => TState,
+  ) => TState,
 ) {
-  let state = initialState;
-  const listeners = new Set<() => void>();
+  let state: TState;
+  let listeners: Set<() => void>;
 
   function notifyListeners() {
     listeners.forEach((listener) => listener());
@@ -35,5 +40,14 @@ export function createStore<TState extends Record<string, any>>(
     };
   }
 
-  return { setState, getState, subscribe };
+  function useStore<TValue>(
+    selector: (currentState: TState) => TValue,
+  ): TValue {
+    return useSyncExternalStore(subscribe, () => selector(state));
+  }
+
+  state = createState(setState, getState);
+  listeners = new Set();
+
+  return useStore;
 }
